@@ -51,13 +51,13 @@ Este script esta basado en una investigacion del blog de zc00l: https://0x00-0x0
     }
     
 
-    if ($Executable.ToLower() -eq "powershell") 
+    if ($Executable.ToLower() -eq "C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe") 
     {
         if ($Command -ne "") {
             $final = "powershell -c ""$Command"""
     }
  
-    } elseif  ($Executable.ToLower() -eq "cmd") 
+    } elseif  ($Executable.ToLower() -eq "C:\Windows\system32\cmd.exe") 
     {
         if ($Command -ne "") 
         {
