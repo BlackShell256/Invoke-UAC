@@ -134,6 +134,13 @@ public class CMSTPBypass
 }
 "@
 
+$ConsentPrompt = (Get-ItemProperty HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System).ConsentPromptBehaviorAdmin
+$SecureDesktopPrompt = (Get-ItemProperty HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System).PromptOnSecureDesktop
+if($ConsentPrompt -Eq 2 -And $SecureDesktopPrompt -Eq 1){
+    Write-Host "UAC está configurado en 'Notificar siempre'. Este módulo no omite esta configuración"
+    return
+}
+
 try 
 {
     $user = [System.Security.Principal.WindowsIdentity]::GetCurrent().Name
@@ -141,9 +148,11 @@ try
 }
 catch 
 {
-    $user = [System.Security.Principal.WindowsIdentity]::GetCurrent()
-    $sid = New-Object System.Security.Principal.SecurityIdentifier("S-1-5-32-544")
-    $adm = $currentUser.Groups | Where-Object { $_ -eq $sid }
+    $User =  [System.Security.Principal.WindowsIdentity]::GetCurrent().Name
+    $AdminGroupSID = 'S-1-5-32-544'
+    $adminGroup = Get-WmiObject -Class Win32_Group | Where-Object { $_.SID -eq $AdminGroupSID }
+    $members = $adminGroup.GetRelated("Win32_UserAccount")
+    $members | ForEach-Object { if ($_.Caption -eq $User) {$adm = $true} }
 }
 
 if (!$adm) 
